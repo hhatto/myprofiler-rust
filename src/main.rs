@@ -55,7 +55,9 @@ impl<'a> NormalizePattern<'a> {
             subs: subs,
         }
     }
-    fn normalize(&self, text: &'a str) -> String { self.re.replace_all(text, self.subs) }
+    fn normalize(&self, text: &'a str) -> String {
+        self.re.replace_all(text, self.subs)
+    }
 }
 
 macro_rules! value2string {
@@ -97,32 +99,32 @@ pub fn normalize_query(text: &str) -> String {
 
 fn get_process_list(pool: &Pool) -> Vec<FullProcessList> {
     let procs: Vec<FullProcessList> = pool.prep_exec(QUERY_SHOW_PROCESS, ())
-                                          .map(|ret| {
-        ret.map(|x| x.unwrap())
-           .map(|mut row| {
-            let id: u64 = from_value(row.take("Id").unwrap());
-            let user: String = row.take("User").unwrap();
-            let host: String = from_value(row.take("Host").unwrap());
-            let command: String = row.take("Command").unwrap();
-            let time: i32 = from_value(row.take("Time").unwrap());
-            let db: String = value2string!(row, "db");
-            let state: String = value2string!(row, "State");
-            let info: String = value2string!(row, "Info");
-            FullProcessList {
-                id: id,
-                user: user,
-                host: host,
-                db: db,
-                command: command,
-                time: time,
-                state: state,
-                info: info,
-            }
+        .map(|ret| {
+            ret.map(|x| x.unwrap())
+                .map(|mut row| {
+                    let id: u64 = from_value(row.take("Id").unwrap());
+                    let user: String = row.take("User").unwrap();
+                    let host: String = from_value(row.take("Host").unwrap());
+                    let command: String = row.take("Command").unwrap();
+                    let time: i32 = from_value(row.take("Time").unwrap());
+                    let db: String = value2string!(row, "db");
+                    let state: String = value2string!(row, "State");
+                    let info: String = value2string!(row, "Info");
+                    FullProcessList {
+                        id: id,
+                        user: user,
+                        host: host,
+                        db: db,
+                        command: command,
+                        time: time,
+                        state: state,
+                        info: info,
+                    }
+                })
+                .filter(|x| !x.info.is_empty() && x.info != QUERY_SHOW_PROCESS.to_string())
+                .collect()
         })
-           .filter(|x| !x.info.is_empty() && x.info != QUERY_SHOW_PROCESS.to_string())
-           .collect()
-    })
-                                          .unwrap();
+        .unwrap();
     procs
 }
 
@@ -176,7 +178,7 @@ fn main() {
                                         host = host,
                                         port = port)
                                     .as_str())
-                   .unwrap();
+        .unwrap();
 
     let mut cnt = 0;
     loop {
