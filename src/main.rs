@@ -7,6 +7,7 @@ extern crate users;
 extern crate time;
 extern crate regex;
 
+use std::collections::HashMap;
 use std::{env, process, thread};
 use std::time::Duration;
 use mysql::{Pool, Value};
@@ -29,6 +30,21 @@ lazy_static! {
 	    NormalizePattern::new(Regex::new(r#""[^"]+""#).unwrap(), "S"),
 	    NormalizePattern::new(Regex::new(r"(([NS]\s*,\s*){4,})").unwrap(), "...")
     ];
+}
+
+struct Summarizer {
+    counts: HashMap<String, i64>,
+}
+impl Summarizer {
+    fn new() -> Summarizer {
+        Summarizer { counts: HashMap::new() }
+    }
+    fn update(&mut self, queries: Vec<String>) {
+        for query in queries {
+            let count = self.counts.entry(query).or_insert(0);
+            *count += 1;
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -180,6 +196,8 @@ fn main() {
                                     .as_str())
         .unwrap();
 
+    let mut summ = Summarizer::new();
+
     let mut cnt = 0;
     loop {
         let mut procs = get_process_list(&pool);
@@ -188,16 +206,22 @@ fn main() {
             (*process).info = info;
         }
 
+        summ.update(procs.iter().map(|x| x.info.clone()).collect());
+
         cnt += 1;
         if cnt >= delay {
             cnt = 0;
             let t = now().to_local();
-            println!("## {}.{:03} {}",
+            println!("##  {}.{:03} {}",
                      strftime("%Y-%m-%d %H:%M:%S", &t).unwrap(),
                      t.tm_nsec / 1000_000,
                      strftime("%z", &t).unwrap());
+            summ.update(procs.iter().map(|x| x.info.clone()).collect());
             for process in procs {
                 println!("{:?}", process);
+            }
+            for (k, v) in summ.counts.iter() {
+                println!("{:-4} {}", v, k);
             }
         }
 
