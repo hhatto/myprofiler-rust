@@ -1,0 +1,14 @@
+max_width = 120
+fn_call_width = 100
+fn_brace_style = "PreferSameLine"
+item_brace_style = "PreferSameLine"
+fn_single_line = true
+where_indent = "Visual"
+where_layout = "Mixed"
+chain_base_indent = "Visual"
+chain_indent = "Visual"
+reorder_imports = true
+single_line_if_else = true
+take_source_hints = false
+wrap_comments = true
+type_punctuation_density = "Compressed"
