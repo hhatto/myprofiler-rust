@@ -222,36 +222,17 @@ fn main() {
 mod tests {
     use super::*;
 
-    struct Testdata {
-        pat: String,
-        subs: String,
-    }
-
     #[test]
     fn test_normalize() {
-        let data = vec![Testdata {
-                            pat: "IN ('a', 'b', 'c')".to_string(),
-                            subs: "IN (S, S, S)".to_string(),
-                        },
-                        Testdata {
-                            pat: "IN ('a', 'b', 'c', 'd', 'e')".to_string(),
-                            subs: "IN (...S)".to_string(),
-                        },
-                        Testdata {
-                            pat: "IN (1, 2, 3)".to_string(),
-                            subs: "IN (N, N, N)".to_string(),
-                        },
-                        Testdata {
-                            pat: "IN (0x1, 2, 3)".to_string(),
-                            subs: "IN (0xN, N, N)".to_string(),
-                        },
-                        Testdata {
-                            pat: "IN (1, 2, 3, 4, 5)".to_string(),
-                            subs: "IN (...N)".to_string(),
-                        }];
-        for d in data {
-            println!("vv | {:?}, {:?}", normalize_query(d.pat.as_str()), d.subs);
-            assert!(normalize_query(d.pat.as_str()) == d.subs);
+        let data = vec![("IN ('a', 'b', 'c')", "IN (S, S, S)"),
+                        ("IN ('a', 'b', 'c', 'd', 'e')", "IN (...S)"),
+                        ("IN (1, 2, 3)", "IN (N, N, N)"),
+                        ("IN (0x1, 2, 3)", "IN (0xN, N, N)"),
+                        ("IN (1, 2, 3, 4, 5)", "IN (...N)"),
+                        ];
+        for (pat, ret) in data {
+            println!("vv | {:?}, {:?}", normalize_query(pat), ret);
+            assert!(normalize_query(pat) == ret);
         }
     }
 }
