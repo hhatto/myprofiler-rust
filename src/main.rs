@@ -118,23 +118,15 @@ fn get_process_list(pool: &Pool) -> Vec<FullProcessList> {
         .map(|ret| {
             ret.map(|x| x.unwrap())
                 .map(|mut row| {
-                    let id: u64 = from_value(row.take("Id").unwrap());
-                    let user: String = row.take("User").unwrap();
-                    let host: String = from_value(row.take("Host").unwrap());
-                    let command: String = row.take("Command").unwrap();
-                    let time: i32 = from_value(row.take("Time").unwrap());
-                    let db: String = value2string!(row, "db");
-                    let state: String = value2string!(row, "State");
-                    let info: String = value2string!(row, "Info");
                     FullProcessList {
-                        id: id,
-                        user: user,
-                        host: host,
-                        db: db,
-                        command: command,
-                        time: time,
-                        state: state,
-                        info: info,
+                        id: from_value(row.take("Id").unwrap()),
+                        user: row.take("User").unwrap(),
+                        host: from_value(row.take("Host").unwrap()),
+                        command: row.take("Command").unwrap(),
+                        time: from_value(row.take("Time").unwrap()),
+                        db: value2string!(row, "db"),
+                        state: value2string!(row, "State"),
+                        info: value2string!(row, "Info"),
                     }
                 })
                 .filter(|x| !x.info.is_empty() && x.info != QUERY_SHOW_PROCESS.to_string())
@@ -217,9 +209,6 @@ fn main() {
                      t.tm_nsec / 1000_000,
                      strftime("%z", &t).unwrap());
             summ.update(procs.iter().map(|x| x.info.clone()).collect());
-            for process in procs {
-                println!("{:?}", process);
-            }
             for (k, v) in summ.counts.iter() {
                 println!("{:-4} {}", v, k);
             }
