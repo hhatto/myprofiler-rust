@@ -47,6 +47,7 @@ impl Summarizer {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 struct FullProcessList {
     id: u64,
@@ -56,6 +57,11 @@ struct FullProcessList {
     command: String,
     time: i32,
     state: String,
+    info: String,
+}
+
+#[derive(Debug)]
+struct ProcessList {
     info: String,
 }
 
@@ -113,22 +119,11 @@ pub fn normalize_query(text: &str) -> String {
     t.to_string()
 }
 
-fn get_process_list(pool: &Pool) -> Vec<FullProcessList> {
-    let procs: Vec<FullProcessList> = pool.prep_exec(QUERY_SHOW_PROCESS, ())
+fn get_process_list(pool: &Pool) -> Vec<ProcessList> {
+    let procs: Vec<ProcessList> = pool.prep_exec(QUERY_SHOW_PROCESS, ())
         .map(|ret| {
             ret.map(|x| x.unwrap())
-                .map(|mut row| {
-                    FullProcessList {
-                        id: from_value(row.take("Id").unwrap()),
-                        user: row.take("User").unwrap(),
-                        host: from_value(row.take("Host").unwrap()),
-                        command: row.take("Command").unwrap(),
-                        time: from_value(row.take("Time").unwrap()),
-                        db: value2string!(row, "db"),
-                        state: value2string!(row, "State"),
-                        info: value2string!(row, "Info"),
-                    }
-                })
+                .map(|mut row| ProcessList { info: value2string!(row, "Info") })
                 .filter(|x| !x.info.is_empty() && x.info != QUERY_SHOW_PROCESS.to_string())
                 .collect()
         })
