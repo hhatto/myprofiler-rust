@@ -39,6 +39,16 @@ impl Summarizer {
     fn new() -> Summarizer {
         Summarizer { counts: HashMap::new() }
     }
+
+    fn show_summary(&mut self) {
+        let mut pp: Vec<_> = self.counts.iter().collect();
+        pp.sort_by(|a, b| b.1.cmp(a.1));
+
+        for (k, v) in pp {
+            println!("{:-4} {}", v, k);
+        }
+    }
+
     fn update(&mut self, queries: Vec<String>) {
         for query in queries {
             let count = self.counts.entry(query).or_insert(0);
@@ -203,9 +213,7 @@ fn main() {
                      strftime("%Y-%m-%d %H:%M:%S", &t).unwrap(),
                      t.tm_nsec / 1000_000,
                      strftime("%z", &t).unwrap());
-            for (k, v) in summ.counts.iter() {
-                println!("{:-4} {}", v, k);
-            }
+            summ.show_summary();
         }
 
         thread::sleep(Duration::from_millis((1000. * interval) as u64));
