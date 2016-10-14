@@ -20,15 +20,15 @@ use regex::Regex;
 const QUERY_SHOW_PROCESS: &'static str = "SHOW FULL PROCESSLIST";
 
 lazy_static! {
-	static ref NORMALIZE_PATTERNS: Vec<NormalizePattern<'static>> = vec![
-	    NormalizePattern::new(Regex::new(r" +").unwrap(), " "),
-	    NormalizePattern::new(Regex::new(r#"[+-]{0,1}\b\d+\b"#).unwrap(), "N"),
+    static ref NORMALIZE_PATTERNS: Vec<NormalizePattern<'static>> = vec![
+        NormalizePattern::new(Regex::new(r" +").unwrap(), " "),
+        NormalizePattern::new(Regex::new(r#"[+-]{0,1}\b\d+\b"#).unwrap(), "N"),
         NormalizePattern::new(Regex::new(r"\b0x[0-9A-Fa-f]+\b").unwrap(), "0xN"),
-	    NormalizePattern::new(Regex::new(r#"(\\')"#).unwrap(), ""),
-	    NormalizePattern::new(Regex::new(r#"(\\")"#).unwrap(), ""),
-	    NormalizePattern::new(Regex::new(r"'[^']+'").unwrap(), "S"),
-	    NormalizePattern::new(Regex::new(r#""[^"]+""#).unwrap(), "S"),
-	    NormalizePattern::new(Regex::new(r"(([NS]\s*,\s*){4,})").unwrap(), "...")
+        NormalizePattern::new(Regex::new(r#"(\\')"#).unwrap(), ""),
+        NormalizePattern::new(Regex::new(r#"(\\")"#).unwrap(), ""),
+        NormalizePattern::new(Regex::new(r"'[^']+'").unwrap(), "S"),
+        NormalizePattern::new(Regex::new(r#""[^"]+""#).unwrap(), "S"),
+        NormalizePattern::new(Regex::new(r"(([NS]\s*,\s*){4,})").unwrap(), "...")
     ];
 }
 
@@ -90,25 +90,25 @@ macro_rules! value2string {
             },
             None => "".to_string()
         }
-    )
+        )
 }
 
 macro_rules! opts2v {
     ($m:expr, $opts:expr, $opt:expr, $t:ty, $default:expr) => (
-    match $m.opt_str($opt) {
-        Some(v) => {
-            match v.parse::<$t>() {
-                Ok(v) => v,
-                Err(e) => {
-                    println!("e={:?}", e);
-                    print_usage($opts);
-                    process::exit(1);
-                },
-            }
-        },
-        None => $default,
-    }
-    )
+        match $m.opt_str($opt) {
+            Some(v) => {
+                match v.parse::<$t>() {
+                    Ok(v) => v,
+                    Err(e) => {
+                        println!("e={:?}", e);
+                        print_usage($opts);
+                        process::exit(1);
+                    },
+                }
+            },
+            None => $default,
+        }
+        )
 }
 
 pub fn normalize_query(text: &str) -> String {
