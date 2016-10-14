@@ -203,7 +203,6 @@ fn main() {
                      strftime("%Y-%m-%d %H:%M:%S", &t).unwrap(),
                      t.tm_nsec / 1000_000,
                      strftime("%z", &t).unwrap());
-            summ.update(procs.iter().map(|x| x.info.clone()).collect());
             for (k, v) in summ.counts.iter() {
                 println!("{:-4} {}", v, k);
             }
