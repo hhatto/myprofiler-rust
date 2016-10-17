@@ -40,12 +40,17 @@ impl Summarizer {
         Summarizer { counts: HashMap::new() }
     }
 
-    fn show_summary(&mut self) {
+    fn show_summary(&mut self, n_query: u32) {
         let mut pp: Vec<_> = self.counts.iter().collect();
         pp.sort_by(|a, b| b.1.cmp(a.1));
 
+        let mut cnt = 0;
         for (k, v) in pp {
             println!("{:-4} {}", v, k);
+            cnt += 1;
+            if n_query >= cnt {
+                break;
+            }
         }
     }
 
@@ -157,6 +162,7 @@ fn main() {
                 "delay",
                 "(int) Show summary for each `delay` samples. -interval=0.1 -delay=30 shows summary for every 3sec",
                 "N");
+    opts.optopt("", "top", "(int) Show N most common queries (default 10)", "N");
     let args: Vec<String> = env::args().collect();
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
@@ -182,6 +188,7 @@ fn main() {
     let port = opts2v!(matches, opts, "port", i32, 3306);
     let interval = opts2v!(matches, opts, "interval", f32, 1.0);
     let delay = opts2v!(matches, opts, "delay", i32, 1);
+    let top = opts2v!(matches, opts, "top", u32, 10);
 
     let pool = Pool::new_manual(1,
                                 1,
@@ -213,7 +220,7 @@ fn main() {
                      strftime("%Y-%m-%d %H:%M:%S", &t).unwrap(),
                      t.tm_nsec / 1000_000,
                      strftime("%z", &t).unwrap());
-            summ.show_summary();
+            summ.show_summary(top);
         }
 
         thread::sleep(Duration::from_millis((1000. * interval) as u64));
