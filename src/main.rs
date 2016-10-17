@@ -156,13 +156,12 @@ fn main() {
     opts.optopt("u", "user", "mysql user", "USER");
     opts.optopt("p", "password", "mysql password", "PASSWORD");
     opts.optopt("", "port", "mysql port", "PORT");
-    opts.optopt("", "top", "print top N query", "N");
+    opts.optopt("", "top", "print top N query (default: 10)", "N");
     opts.optopt("i", "interval", "(float) Sampling interval", "N.M");
     opts.optopt("",
                 "delay",
                 "(int) Show summary for each `delay` samples. -interval=0.1 -delay=30 shows summary for every 3sec",
                 "N");
-    opts.optopt("", "top", "(int) Show N most common queries (default 10)", "N");
     let args: Vec<String> = env::args().collect();
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
