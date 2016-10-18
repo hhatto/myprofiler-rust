@@ -32,26 +32,36 @@ lazy_static! {
     ];
 }
 
+trait Summarize {
+    fn new(limit: u32) -> Self;
+    fn show(&mut self, n_query: u32);
+    fn update(&mut self, queries: Vec<String>);
+}
+
+fn show_summary(summ: &HashMap<String, i64>, n_query: u32) {
+    let mut pp: Vec<_> = summ.iter().collect();
+    pp.sort_by(|a, b| b.1.cmp(a.1));
+
+    let mut cnt = 0;
+    for (k, v) in pp {
+        println!("{:-4} {}", v, k);
+        cnt += 1;
+        if cnt >= n_query {
+            break;
+        }
+    }
+}
+
 struct Summarizer {
     counts: HashMap<String, i64>,
 }
-impl Summarizer {
-    fn new() -> Summarizer {
+impl Summarize for Summarizer {
+    fn new(_: u32) -> Summarizer {
         Summarizer { counts: HashMap::new() }
     }
 
-    fn show_summary(&mut self, n_query: u32) {
-        let mut pp: Vec<_> = self.counts.iter().collect();
-        pp.sort_by(|a, b| b.1.cmp(a.1));
-
-        let mut cnt = 0;
-        for (k, v) in pp {
-            println!("{:-4} {}", v, k);
-            cnt += 1;
-            if n_query >= cnt {
-                break;
-            }
-        }
+    fn show(&mut self, n_query: u32) {
+        show_summary(&self.counts, n_query);
     }
 
     fn update(&mut self, queries: Vec<String>) {
@@ -59,6 +69,59 @@ impl Summarizer {
             let count = self.counts.entry(query).or_insert(0);
             *count += 1;
         }
+    }
+}
+
+#[derive(Debug)]
+struct QueryCount {
+    q: String,
+    n: i64,
+}
+struct RecentSummarizer {
+    counts: Vec<Vec<QueryCount>>,
+    limit: u32,
+}
+impl Summarize for RecentSummarizer {
+    fn new(limit: u32) -> RecentSummarizer {
+        RecentSummarizer {
+            counts: vec![],
+            limit: limit,
+        }
+    }
+
+    fn show(&mut self, n_query: u32) {
+        let mut summ = HashMap::new();
+        for qcs in &self.counts {
+            for qc in qcs {
+                let query = qc.q.clone();
+                let count = summ.entry(query).or_insert(0);
+                *count += qc.n;
+            }
+        }
+        show_summary(&summ, n_query);
+    }
+
+    fn update(&mut self, queries: Vec<String>) {
+        let mut qs = queries;
+        let mut qc = Vec::<QueryCount>::new();
+        if self.counts.len() >= self.limit as usize {
+            self.counts.remove(0);
+        }
+        qs.sort_by(|a, b| a.cmp(b));
+
+        let mut last_query = "";
+        for query in qs.iter() {
+            if last_query != query.as_str() {
+                qc.push(QueryCount {
+                    q: query.clone(),
+                    n: 0,
+                });
+                last_query = query.as_str();
+            }
+            let l = qc.last_mut().unwrap();
+            l.n += 1;
+        }
+        self.counts.push(qc);
     }
 }
 
@@ -95,6 +158,12 @@ impl<'a> NormalizePattern<'a> {
     fn normalize(&self, text: &'a str) -> String {
         self.re.replace_all(text, self.subs)
     }
+}
+
+struct MyprofilerOption {
+    interval: f32,
+    delay: i32,
+    top: u32,
 }
 
 macro_rules! value2string {
@@ -150,6 +219,32 @@ fn print_usage(opts: Options) {
     print!("{}", opts.usage("Usage: myprofiler [options]"));
 }
 
+fn exec_profile<T: Summarize>(pool: &Pool, mut summ: T, options: &MyprofilerOption) {
+    let mut cnt = 0;
+    loop {
+        let mut procs = get_process_list(&pool);
+        for process in procs.iter_mut() {
+            let info = normalize_query(process.info.as_str());
+            (*process).info = info;
+        }
+
+        summ.update(procs.iter().map(|x| x.info.clone()).collect());
+
+        cnt += 1;
+        if cnt >= options.delay {
+            cnt = 0;
+            let t = now().to_local();
+            println!("##  {}.{:03} {}",
+                     strftime("%Y-%m-%d %H:%M:%S", &t).unwrap(),
+                     t.tm_nsec / 1000_000,
+                     strftime("%z", &t).unwrap());
+            summ.show(options.top);
+        }
+
+        thread::sleep(Duration::from_millis((1000. * options.interval) as u64));
+    }
+}
+
 fn main() {
     let mut opts = Options::new();
     opts.optopt("h", "host", "mysql hostname", "HOSTNAME");
@@ -157,6 +252,7 @@ fn main() {
     opts.optopt("p", "password", "mysql password", "PASSWORD");
     opts.optopt("", "port", "mysql port", "PORT");
     opts.optopt("", "top", "print top N query (default: 10)", "N");
+    opts.optopt("", "last", "last N samples are summarized. 0 means summarize all samples", "N");
     opts.optopt("i", "interval", "(float) Sampling interval", "N.M");
     opts.optopt("",
                 "delay",
@@ -185,9 +281,12 @@ fn main() {
         None => "".to_string(),
     };
     let port = opts2v!(matches, opts, "port", i32, 3306);
-    let interval = opts2v!(matches, opts, "interval", f32, 1.0);
-    let delay = opts2v!(matches, opts, "delay", i32, 1);
-    let top = opts2v!(matches, opts, "top", u32, 10);
+    let last = opts2v!(matches, opts, "last", u32, 0);
+    let options = MyprofilerOption {
+        interval: opts2v!(matches, opts, "interval", f32, 1.0),
+        delay: opts2v!(matches, opts, "delay", i32, 1),
+        top: opts2v!(matches, opts, "top", u32, 10),
+    };
 
     let pool = Pool::new_manual(1,
                                 1,
@@ -199,30 +298,12 @@ fn main() {
                                     .as_str())
         .unwrap();
 
-    let mut summ = Summarizer::new();
-
-    let mut cnt = 0;
-    loop {
-        let mut procs = get_process_list(&pool);
-        for process in procs.iter_mut() {
-            let info = normalize_query(process.info.as_str());
-            (*process).info = info;
-        }
-
-        summ.update(procs.iter().map(|x| x.info.clone()).collect());
-
-        cnt += 1;
-        if cnt >= delay {
-            cnt = 0;
-            let t = now().to_local();
-            println!("##  {}.{:03} {}",
-                     strftime("%Y-%m-%d %H:%M:%S", &t).unwrap(),
-                     t.tm_nsec / 1000_000,
-                     strftime("%z", &t).unwrap());
-            summ.show_summary(top);
-        }
-
-        thread::sleep(Duration::from_millis((1000. * interval) as u64));
+    if last == 0 {
+        let summ: Summarizer = Summarize::new(last);
+        exec_profile(&pool, summ, &options);
+    } else {
+        let summ: RecentSummarizer = Summarize::new(last);
+        exec_profile(&pool, summ, &options);
     }
 }
 
