@@ -20,14 +20,14 @@ const QUERY_SHOW_PROCESS: &'static str = "SHOW FULL PROCESSLIST";
 
 lazy_static! {
     static ref NORMALIZE_PATTERNS: Vec<NormalizePattern<'static>> = vec![
-        NormalizePattern::new(Regex::new(r" +").unwrap(), " "),
-        NormalizePattern::new(Regex::new(r#"[+-]{0,1}\b\d+\b"#).unwrap(), "N"),
-        NormalizePattern::new(Regex::new(r"\b0x[0-9A-Fa-f]+\b").unwrap(), "0xN"),
-        NormalizePattern::new(Regex::new(r#"(\\')"#).unwrap(), ""),
-        NormalizePattern::new(Regex::new(r#"(\\")"#).unwrap(), ""),
-        NormalizePattern::new(Regex::new(r"'[^']+'").unwrap(), "S"),
-        NormalizePattern::new(Regex::new(r#""[^"]+""#).unwrap(), "S"),
-        NormalizePattern::new(Regex::new(r"(([NS]\s*,\s*){4,})").unwrap(), "...")
+        NormalizePattern::new(Regex::new(r" +").expect("fail regex compile: +"), " "),
+        NormalizePattern::new(Regex::new(r#"[+-]{0,1}\b\d+\b"#).expect("fail regex compile: digit"), "N"),
+        NormalizePattern::new(Regex::new(r"\b0x[0-9A-Fa-f]+\b").expect("fail regex compile: hex"), "0xN"),
+        NormalizePattern::new(Regex::new(r#"(\\')"#).expect("fail regex compile: single quote"), ""),
+        NormalizePattern::new(Regex::new(r#"(\\")"#).expect("fail regex compile: double quote"), ""),
+        NormalizePattern::new(Regex::new(r"'[^']+'").expect("fail regex compile: string1"), "S"),
+        NormalizePattern::new(Regex::new(r#""[^"]+""#).expect("fail regex compile: string2"), "S"),
+        NormalizePattern::new(Regex::new(r"(([NS]\s*,\s*){4,})").expect("fail regex compile: long"), "...")
     ];
 }
 
@@ -117,7 +117,7 @@ impl Summarize for RecentSummarizer {
                 });
                 last_query = query.as_str();
             }
-            let l = qc.last_mut().unwrap();
+            let l = qc.last_mut().expect("fail get last query string");
             l.n += 1;
         }
         self.counts.push(qc);
@@ -210,7 +210,7 @@ fn get_process_list(pool: &Pool) -> Vec<ProcessList> {
                 .filter(|x| !x.info.is_empty() && x.info != QUERY_SHOW_PROCESS.to_string())
                 .collect()
         })
-        .unwrap();
+        .expect("fail get process list");
     procs
 }
 
@@ -234,9 +234,9 @@ fn exec_profile<T: Summarize>(pool: &Pool, mut summ: T, options: &MyprofilerOpti
             cnt = 0;
             let t = now().to_local();
             println!("##  {}.{:03} {}",
-                     strftime("%Y-%m-%d %H:%M:%S", &t).unwrap(),
+                     strftime("%Y-%m-%d %H:%M:%S", &t).expect("fail strftime(ymdhms)"),
                      t.tm_nsec / 1000_000,
-                     strftime("%z", &t).unwrap());
+                     strftime("%z", &t).expect("fail strftime(z)"));
             summ.show(options.top);
         }
 
@@ -273,7 +273,7 @@ fn main() {
     };
     let user = match matches.opt_str("user") {
         Some(v) => v,
-        None => get_user_by_uid(get_current_uid()).unwrap().name().to_string(),
+        None => get_user_by_uid(get_current_uid()).expect("fail get uid").name().to_string(),
     };
     let password = match matches.opt_str("password") {
         Some(v) => v,
@@ -295,7 +295,7 @@ fn main() {
                                         host = host,
                                         port = port)
                                     .as_str())
-        .unwrap();
+        .expect("fail get mysql connection");
 
     if last == 0 {
         let summ: Summarizer = Summarize::new(last);
