@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::{env, process, thread};
 use std::time::Duration;
 use mysql::{Pool, Value};
-use mysql::value::from_value;
+use mysql::from_value;
 use getopts::Options;
 use users::{get_current_uid, get_user_by_uid};
 use time::{now, strftime};
