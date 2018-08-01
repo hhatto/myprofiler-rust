@@ -6,6 +6,7 @@ extern crate users;
 extern crate time;
 extern crate regex;
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::{env, process, thread};
 use std::time::Duration;
@@ -154,7 +155,7 @@ impl<'a> NormalizePattern<'a> {
             subs: subs,
         }
     }
-    fn normalize(&self, text: &'a str) -> String {
+    fn normalize(&self, text: &'a str) -> Cow<'a, str> {
         self.re.replace_all(text, self.subs)
     }
 }
@@ -197,7 +198,7 @@ macro_rules! opts2v {
 pub fn normalize_query(text: &str) -> String {
     let mut t = text.to_string();
     for pat in NORMALIZE_PATTERNS.iter() {
-        t = pat.normalize(t.as_str());
+        t = pat.normalize(t.as_str()).into();
     }
     t.to_string()
 }
