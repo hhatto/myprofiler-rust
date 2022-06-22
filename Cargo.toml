@@ -2,13 +2,15 @@
 name = "myprofiler"
 version = "0.1.0"
 authors = ["Hideo Hattori <hattori-h@klab.com>"]
+edition = "2021"
 
 [dependencies]
-mysql = "*"
+mysql = "22"
 getopts = "0.2"
 users = "0.7"
 time = "0.1"
 regex = "1"
+once_cell = "1"
 
 [dependencies.lazy_static]
 git = "https://github.com/rust-lang-nursery/lazy-static.rs"

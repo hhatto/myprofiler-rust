@@ -1,26 +1,20 @@
-extern crate mysql;
-#[macro_use]
-extern crate lazy_static;
-extern crate getopts;
-extern crate users;
-extern crate time;
-extern crate regex;
-
+use getopts::Options;
+use mysql::prelude::*;
+use mysql::from_value;
+use mysql::{Opts, Pool, Value};
+use once_cell::sync::Lazy;
+use regex::Regex;
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::{env, process, thread};
 use std::time::Duration;
-use mysql::{Pool, Value};
-use mysql::from_value;
-use getopts::Options;
-use users::{get_current_uid, get_user_by_uid};
+use std::{env, process, thread};
 use time::{now, strftime};
-use regex::Regex;
+use users::{get_current_uid, get_user_by_uid};
 
 const QUERY_SHOW_PROCESS: &'static str = "SHOW FULL PROCESSLIST";
 
-lazy_static! {
-    static ref NORMALIZE_PATTERNS: Vec<NormalizePattern<'static>> = vec![
+static NORMALIZE_PATTERNS: Lazy<Vec<NormalizePattern<'static>>> = Lazy::new(|| {
+    vec![
         NormalizePattern::new(Regex::new(r" +").expect("fail regex compile: +"), " "),
         NormalizePattern::new(Regex::new(r#"[+-]{0,1}\b\d+\b"#).expect("fail regex compile: digit"), "N"),
         NormalizePattern::new(Regex::new(r"\b0x[0-9A-Fa-f]+\b").expect("fail regex compile: hex"), "0xN"),
@@ -28,9 +22,9 @@ lazy_static! {
         NormalizePattern::new(Regex::new(r#"(\\")"#).expect("fail regex compile: double quote"), ""),
         NormalizePattern::new(Regex::new(r"'[^']+'").expect("fail regex compile: string1"), "S"),
         NormalizePattern::new(Regex::new(r#""[^"]+""#).expect("fail regex compile: string2"), "S"),
-        NormalizePattern::new(Regex::new(r"(([NS]\s*,\s*){4,})").expect("fail regex compile: long"), "...")
-    ];
-}
+        NormalizePattern::new(Regex::new(r"(([NS]\s*,\s*){4,})").expect("fail regex compile: long"), "..."),
+    ]
+});
 
 trait Summarize {
     fn new(limit: u32) -> Self;
@@ -112,10 +106,7 @@ impl Summarize for RecentSummarizer {
         let mut last_query = "";
         for query in qs.iter() {
             if last_query != query.as_str() {
-                qc.push(QueryCount {
-                    q: query.clone(),
-                    n: 0,
-                });
+                qc.push(QueryCount { q: query.clone(), n: 0 });
                 last_query = query.as_str();
             }
             let l = qc.last_mut().expect("fail get last query string");
@@ -150,10 +141,7 @@ struct NormalizePattern<'a> {
 
 impl<'a> NormalizePattern<'a> {
     fn new(re: Regex, subs: &'a str) -> NormalizePattern<'a> {
-        NormalizePattern {
-            re: re,
-            subs: subs,
-        }
+        NormalizePattern { re: re, subs: subs }
     }
     fn normalize(&self, text: &'a str) -> Cow<'a, str> {
         self.re.replace_all(text, self.subs)
@@ -167,32 +155,34 @@ struct MyprofilerOption {
 }
 
 macro_rules! value2string {
-    ($row:expr, $value:expr) => (
+    ($row:expr, $value:expr) => {
         match $row.take($value) {
             Some(v) => {
-                if v == Value::NULL { "".to_string() } else { from_value(v) }
-            },
-            None => "".to_string()
+                if v == Value::NULL {
+                    "".to_string()
+                } else {
+                    from_value(v)
+                }
+            }
+            None => "".to_string(),
         }
-        )
+    };
 }
 
 macro_rules! opts2v {
-    ($m:expr, $opts:expr, $opt:expr, $t:ty, $default:expr) => (
+    ($m:expr, $opts:expr, $opt:expr, $t:ty, $default:expr) => {
         match $m.opt_str($opt) {
-            Some(v) => {
-                match v.parse::<$t>() {
-                    Ok(v) => v,
-                    Err(e) => {
-                        println!("e={:?}", e);
-                        print_usage($opts);
-                        process::exit(1);
-                    },
+            Some(v) => match v.parse::<$t>() {
+                Ok(v) => v,
+                Err(e) => {
+                    println!("e={:?}", e);
+                    print_usage($opts);
+                    process::exit(1);
                 }
             },
             None => $default,
         }
-        )
+    };
 }
 
 pub fn normalize_query(text: &str) -> String {
@@ -204,10 +194,14 @@ pub fn normalize_query(text: &str) -> String {
 }
 
 fn get_process_list(pool: &Pool) -> Vec<ProcessList> {
-    let procs: Vec<ProcessList> = pool.prep_exec(QUERY_SHOW_PROCESS, ())
+    let mut conn = pool.get_conn().unwrap();
+    let procs: Vec<ProcessList> = conn
+        .exec_iter(QUERY_SHOW_PROCESS, ())
         .map(|ret| {
             ret.map(|x| x.unwrap())
-                .map(|mut row| ProcessList { info: value2string!(row, "Info") })
+                .map(|mut row| ProcessList {
+                    info: value2string!(row, "Info"),
+                })
                 .filter(|x| !x.info.is_empty() && x.info != QUERY_SHOW_PROCESS.to_string())
                 .collect()
         })
@@ -234,10 +228,12 @@ fn exec_profile<T: Summarize>(pool: &Pool, mut summ: T, options: &MyprofilerOpti
         if cnt >= options.delay {
             cnt = 0;
             let t = now().to_local();
-            println!("##  {}.{:03} {}",
-                     strftime("%Y-%m-%d %H:%M:%S", &t).expect("fail strftime(ymdhms)"),
-                     t.tm_nsec / 1000_000,
-                     strftime("%z", &t).expect("fail strftime(z)"));
+            println!(
+                "##  {}.{:03} {}",
+                strftime("%Y-%m-%d %H:%M:%S", &t).expect("fail strftime(ymdhms)"),
+                t.tm_nsec / 1000_000,
+                strftime("%z", &t).expect("fail strftime(z)")
+            );
             summ.show(options.top);
         }
 
@@ -245,7 +241,7 @@ fn exec_profile<T: Summarize>(pool: &Pool, mut summ: T, options: &MyprofilerOpti
     }
 }
 
-fn main() {
+fn main() -> Result<(), String> {
     let mut opts = Options::new();
     opts.optopt("h", "host", "mysql hostname", "HOSTNAME");
     opts.optopt("u", "user", "mysql user", "USER");
@@ -254,17 +250,19 @@ fn main() {
     opts.optopt("", "top", "print top N query (default: 10)", "N");
     opts.optopt("", "last", "last N samples are summarized. 0 means summarize all samples", "N");
     opts.optopt("i", "interval", "(float) Sampling interval", "N.M");
-    opts.optopt("",
-                "delay",
-                "(int) Show summary for each `delay` samples. -interval=0.1 -delay=30 shows summary for every 3sec",
-                "N");
+    opts.optopt(
+        "",
+        "delay",
+        "(int) Show summary for each `delay` samples. -interval=0.1 -delay=30 shows summary for every 3sec",
+        "N",
+    );
     let args: Vec<String> = env::args().collect();
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
         Err(e) => {
             print_usage(opts);
-            println!("{:?}", e);
-            return;
+            println!("{}", e);
+            process::exit(1);
         }
     };
 
@@ -274,7 +272,10 @@ fn main() {
     };
     let user = match matches.opt_str("user") {
         Some(v) => v,
-        None => get_user_by_uid(get_current_uid()).expect("fail get uid").name().to_string(),
+        None => get_user_by_uid(get_current_uid())
+            .expect("fail get uid")
+            .name()
+            .to_string(),
     };
     let password = match matches.opt_str("password") {
         Some(v) => v,
@@ -288,15 +289,15 @@ fn main() {
         top: opts2v!(matches, opts, "top", u32, 10),
     };
 
-    let pool = Pool::new_manual(1,
-                                1,
-                                format!("mysql://{user}:{password}@{host}:{port}",
-                                        user = user,
-                                        password = password,
-                                        host = host,
-                                        port = port)
-                                    .as_str())
-        .expect("fail get mysql connection");
+    let url = format!(
+        "mysql://{user}:{password}@{host}:{port}",
+        user = user,
+        password = password,
+        host = host,
+        port = port
+    );
+    let opts = Opts::from_url(url.as_str()).expect("invalid dsn");
+    let pool = Pool::new_manual(1, 1, opts).expect("fail get mysql connection");
 
     if last == 0 {
         let summ: Summarizer = Summarize::new(last);
@@ -305,6 +306,8 @@ fn main() {
         let summ: RecentSummarizer = Summarize::new(last);
         exec_profile(&pool, summ, &options);
     }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -313,12 +316,13 @@ mod tests {
 
     #[test]
     fn test_normalize() {
-        let data = vec![("IN ('a', 'b', 'c')", "IN (S, S, S)"),
-                        ("IN ('a', 'b', 'c', 'd', 'e')", "IN (...S)"),
-                        ("IN (1, 2, 3)", "IN (N, N, N)"),
-                        ("IN (0x1, 2, 3)", "IN (0xN, N, N)"),
-                        ("IN (1, 2, 3, 4, 5)", "IN (...N)"),
-                        ];
+        let data = vec![
+            ("IN ('a', 'b', 'c')", "IN (S, S, S)"),
+            ("IN ('a', 'b', 'c', 'd', 'e')", "IN (...S)"),
+            ("IN (1, 2, 3)", "IN (N, N, N)"),
+            ("IN (0x1, 2, 3)", "IN (0xN, N, N)"),
+            ("IN (1, 2, 3, 4, 5)", "IN (...N)"),
+        ];
         for (pat, ret) in data {
             println!("vv | {:?}, {:?}", normalize_query(pat), ret);
             assert!(normalize_query(pat) == ret);
