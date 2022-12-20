@@ -8,7 +8,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::time::Duration;
 use std::{env, process, thread};
-use time::{now, strftime};
+use time::OffsetDateTime;
 use users::{get_current_uid, get_user_by_uid};
 
 const QUERY_SHOW_PROCESS: &'static str = "SHOW FULL PROCESSLIST";
@@ -227,13 +227,19 @@ fn exec_profile<T: Summarize>(pool: &Pool, mut summ: T, options: &MyprofilerOpti
         cnt += 1;
         if cnt >= options.delay {
             cnt = 0;
-            let t = now().to_local();
-            println!(
-                "##  {}.{:03} {}",
-                strftime("%Y-%m-%d %H:%M:%S", &t).expect("fail strftime(ymdhms)"),
-                t.tm_nsec / 1000_000,
-                strftime("%z", &t).expect("fail strftime(z)")
-            );
+            match OffsetDateTime::now_local() {
+                Ok(t) => {
+                    println!(
+                        "##  {}.{:03} {}",
+                        format!("{:?}", &t),
+                        t.unix_timestamp_nanos() / 1000_000,
+                        t.offset(),
+                    );
+                },
+                Err(e) => {
+                    println!("{}", e);
+                },
+            }
             summ.show(options.top);
         }
 
