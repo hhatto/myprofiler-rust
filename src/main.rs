@@ -229,12 +229,7 @@ fn exec_profile<T: Summarize>(pool: &Pool, mut summ: T, options: &MyprofilerOpti
             cnt = 0;
             match OffsetDateTime::now_local() {
                 Ok(t) => {
-                    println!(
-                        "##  {}.{:03} {}",
-                        format!("{:?}", &t),
-                        t.unix_timestamp_nanos() / 1000_000,
-                        t.offset(),
-                    );
+                    println!("##  {:?}", &t);
                 },
                 Err(e) => {
                     println!("{}", e);
