@@ -8,7 +8,7 @@ edition = "2021"
 mysql = "23"
 getopts = "0.2"
 users = "0.7"
-time = { version = "0.3", features = ["local-offset"] }
+time = { version = "0.3", features = ["local-offset", "macros", "formatting"] }
 regex = "1"
 once_cell = "1"
 
