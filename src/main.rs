@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 use std::{env, process, thread};
 use time::OffsetDateTime;
+use time::macros::format_description;
 use users::{get_current_uid, get_user_by_uid};
 
 const QUERY_SHOW_PROCESS: &'static str = "SHOW FULL PROCESSLIST";
@@ -227,14 +228,11 @@ fn exec_profile<T: Summarize>(pool: &Pool, mut summ: T, options: &MyprofilerOpti
         cnt += 1;
         if cnt >= options.delay {
             cnt = 0;
-            match OffsetDateTime::now_local() {
-                Ok(t) => {
-                    println!("##  {:?}", &t);
-                },
-                Err(e) => {
-                    println!("{}", e);
-                },
-            }
+            let t = OffsetDateTime::now_local().expect("fail get local time");
+            let datefmt = format_description!(
+                "[year]-[month]-[day] [hour]:[minute]:[second].[subsecond digits:3] [offset_hour sign:mandatory][offset_minute]"
+            );
+            println!("##  {}", t.format(&datefmt).unwrap());
             summ.show(options.top);
         }
 
