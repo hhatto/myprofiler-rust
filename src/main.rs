@@ -10,7 +10,7 @@ use std::time::Duration;
 use std::{env, process, thread};
 use time::OffsetDateTime;
 use time::macros::format_description;
-use users::{get_current_uid, get_user_by_uid};
+use users::{Users, UsersCache};
 
 const QUERY_SHOW_PROCESS: &'static str = "SHOW FULL PROCESSLIST";
 
@@ -271,10 +271,12 @@ fn main() -> Result<(), String> {
     };
     let user = match matches.opt_str("user") {
         Some(v) => v,
-        None => get_user_by_uid(get_current_uid())
-            .expect("fail get uid")
-            .name()
-            .to_string(),
+        None => {
+            let cache = UsersCache::new();
+            let uid = cache.get_current_uid();
+            let user = cache.get_user_by_uid(uid).expect("fail get uid");
+            user.name().to_string_lossy().to_string()
+        },
     };
     let password = match matches.opt_str("password") {
         Some(v) => v,
