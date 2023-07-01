@@ -1,4 +1,4 @@
-# myprofiler-rust [![travis badge](https://travis-ci.org/hhatto/myprofiler-rust.svg?branch=master)](https://travis-ci.org/hhatto/myprofiler-rust)
+# myprofiler-rust [![build](https://github.com/hhatto/myprofiler-rust/actions/workflows/rust.yml/badge.svg)](https://github.com/hhatto/myprofiler-rust/actions/workflows/rust.yml)
 
 Rust implementation of [myprofiler](https://github.com/KLab/myprofiler).
 
