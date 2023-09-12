@@ -10,7 +10,7 @@ use std::time::Duration;
 use std::{env, process, thread};
 use time::OffsetDateTime;
 use time::macros::format_description;
-use users::{Users, UsersCache};
+use uzers::{Users, UsersCache};
 
 const QUERY_SHOW_PROCESS: &'static str = "SHOW FULL PROCESSLIST";
 
@@ -291,14 +291,14 @@ fn main() -> Result<(), String> {
     };
 
     let url = format!(
-        "mysql://{user}:{password}@{host}:{port}",
+        "mysql://{user}:{password}@{host}:{port}?pool_min=1&pool_max=1",
         user = user,
         password = password,
         host = host,
         port = port
     );
     let opts = Opts::from_url(url.as_str()).expect("invalid dsn");
-    let pool = Pool::new_manual(1, 1, opts).expect("fail get mysql connection");
+    let pool = Pool::new(opts).expect("fail get mysql connection");
 
     if last == 0 {
         let summ: Summarizer = Summarize::new(last);

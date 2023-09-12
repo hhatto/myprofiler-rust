@@ -5,9 +5,9 @@ authors = ["Hideo Hattori <hhatto.jp@gmail.com>"]
 edition = "2021"
 
 [dependencies]
-mysql = "23"
+mysql = "24"
 getopts = "0.2"
-users = "0.11"
+uzers = "0.11"
 time = { version = "0.3", features = ["local-offset", "macros", "formatting"] }
 regex = "1"
 once_cell = "1"
