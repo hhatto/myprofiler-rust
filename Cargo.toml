@@ -11,6 +11,3 @@ uzers = "0.11"
 time = { version = "0.3", features = ["local-offset", "macros", "formatting"] }
 regex = "1"
 once_cell = "1"
-
-[dependencies.lazy_static]
-git = "https://github.com/rust-lang-nursery/lazy-static.rs"
