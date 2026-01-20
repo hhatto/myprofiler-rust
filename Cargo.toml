@@ -5,7 +5,7 @@ authors = ["Hideo Hattori <hhatto.jp@gmail.com>"]
 edition = "2021"
 
 [dependencies]
-mysql = "25"
+mysql = "27"
 getopts = "0.2"
 uzers = "0.11"
 time = { version = "0.3", features = ["local-offset", "macros", "formatting"] }
